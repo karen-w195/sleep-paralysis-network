@@ -1,0 +1,37 @@
+# FACTOR ANALYSIS
+df_factor <- df %>%
+  select(napping_coded, 
+         napping_length_coded, 
+         alc_use_coded, 
+         alc_per_week, 
+         alc_at_once, 
+         alc_nights_per_week, 
+         caffetine_use_coded, 
+         caffetine_per_week, 
+         caffetine_per_day, 
+         family_members_coded, 
+         family_number_coded, 
+         nicotine_use_coded, 
+         nicotine_per_week, 
+         nicotine_per_day
+  ) 
+fa_result <- fa(df_factor, nfactors = 5, rotate = "varimax")
+print(fa_result)
+fa.diagram(fa_result)
+
+# Calculate FA scores 
+fa_scores <- predict(fa_result, df_factor)
+head(fa_scores)
+
+
+# CREATING TESTING FACTOR FOR FA
+# Alcohol Factor 
+df$alc_factor_FA <- fa_scores[,1]
+# Caffeine Factor
+df$caffetine_factor_FA <- fa_scores[,2]
+# Family Factor
+df$family_factor_FA <- fa_scores[,3]
+# Nicotine Factor
+df$nicotine_factor_FA <- fa_scores[,4]
+# Napping Factor
+df$napping_factor_FA <- fa_scores[,5]
