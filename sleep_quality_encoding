@@ -1,0 +1,216 @@
+# CREATION OF SC1 (sleep quality) - Q9/Q11.23
+# Very good: 0
+# Fairly good :1 
+# Fairly bad: 2 
+# Very bad: 3 
+
+df <- df %>%
+  mutate(SC1 = case_when(
+    Q11.23 == "Very good" ~ 0,
+    Q11.23 == "Fairly good" ~ 1, 
+    Q11.23 == "Fairly bad" ~ 2,
+    Q11.23 == "Very bad" ~ 3,
+    TRUE ~ NA_real_
+  ))
+
+# CREATION OF SC2 (sleep latency) 
+
+# Q2 /Q11.4 
+# < 15 minutes   0 
+# 16-30 minutes   1 
+# 31-60 minutes   2 
+# > 60 minutes   3 
+
+# Q5a / Q11.8
+# Not during past month  0 
+# Less than once a week  1 
+# Once or twice a week  2 
+# Three or more times a week 3 
+
+# sum
+# 0     0 
+# 1-2     1 
+# 3-4     2 
+# 5-6     3 
+
+df <- df %>%
+  mutate(SC2_q2 = case_when(
+    Q11.4_coded <=15 ~ 0,
+    Q11.4_coded >15 & Q11.4_coded <=30 ~ 1, 
+    Q11.4_coded >30 & Q11.4_coded <=60 ~ 2,
+    Q11.4_coded >60 ~ 3,
+    TRUE ~ NA_real_
+  )) %>%
+  mutate(SC2_q5a = case_when(
+    Q11.8 == "Not during the past month" ~ 0,
+    Q11.8 == "Less than once a week" ~ 1, 
+    Q11.8 == "Once or twice a week" ~ 2,
+    Q11.8 == "Three or more times a week" ~ 3,
+    TRUE ~ NA_real_
+  )) %>%
+  mutate(SC2sum = SC2_q2 + SC2_q5a) %>%
+  mutate(SC2 = case_when(
+    SC2sum == 0 ~ 0,
+    SC2sum >= 1 & SC2sum <= 2 ~ 1, 
+    SC2sum >= 3 & SC2sum <= 4 ~ 2, 
+    SC2sum >= 5 & SC2sum <= 6 ~ 3
+  )) %>%
+  select(-SC2_q2, -SC2_q5a, -SC2sum)
+
+# CREATION OF SC3 (sleep duration) - Q4/Q11.6
+# > 7 hours    0 
+# 6-7 hours    1 
+# 5-6 hours    2 
+# < 5 hours    3 
+
+df <- df %>%
+  mutate(SC3 = case_when(
+    Q11.6_coded > 7 ~ 0,
+    Q11.6_coded >=6 & Q11.6_coded <=7 ~ 1, 
+    Q11.6_coded >=5 & Q11.6_coded <6 ~ 2,
+    Q11.6_coded < 5 ~ 3,
+    TRUE ~ NA_real_
+  ))
+
+# CREATION OF SC4 (sleep efficiency) - Q1,3,4/Q11.3,5,6
+# sleep efficiency = Q4 / diff(Q3-Q1) 
+# > 85%    0
+# 75-84%    1 
+# 65-74%    2 
+# < 65%    3 
+
+dummy_date <- "2000-01-01"
+
+df <- df %>%
+  mutate(
+    bedtime = as.POSIXct(paste(dummy_date, Q11.3_coded), format="%Y-%m-%d %H"),
+    uptime = as.POSIXct(paste(dummy_date, Q11.5_coded), format="%Y-%m-%d %H"),
+    uptime_adj = if_else(uptime < bedtime,
+                         uptime + 24*60*60,
+                         uptime),
+    SC4_inbed = difftime(uptime_adj, bedtime, units = "hours")
+  ) %>%
+  mutate(
+    SC4_eff = as.numeric(Q11.6_coded) / as.numeric(SC4_inbed, units = "hours") * 100
+  ) %>% 
+  mutate(SC4 = case_when(
+    SC4_eff > 84 ~ 0,
+    SC4_eff > 75 & SC4_eff <= 84 ~ 1,
+    SC4_eff >= 65 & SC4_eff <= 75 ~ 2,
+    SC4_eff < 65 ~ 3,  
+    TRUE ~ NA_real_ 
+  )) %>% 
+  select(-bedtime, -uptime, -uptime_adj,-SC4_inbed,-SC4_eff)
+
+
+# CREATION OF SC5 - Q5.b-j / Q11.9,10,12,13,14,16,17,18
+
+# Not during past month  0 
+# Less than once a week  1 
+# Once or twice a week  2 
+# Three or more times a week 3  
+
+# Sum of 5b to 5j scores  Component 5 
+# score 0 0 
+# 1-9 1 
+# 10-18    2 
+# 19-27    3 
+
+df <- df %>%
+  mutate(SC5b = case_when(
+    Q11.9 == "Not during the past month" ~ 0,
+    Q11.9 == "Less than once a week" ~ 1, 
+    Q11.9 == "Once or twice a week" ~ 2,
+    Q11.9 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5c = case_when(
+    Q11.10 == "Not during the past month" ~ 0,
+    Q11.10 == "Less than once a week" ~ 1, 
+    Q11.10 == "Once or twice a week" ~ 2,
+    Q11.10 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5d = case_when(
+    Q11.12 == "Not during the past month" ~ 0,
+    Q11.12 == "Less than once a week" ~ 1, 
+    Q11.12 == "Once or twice a week" ~ 2,
+    Q11.12 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5e = case_when(
+    Q11.13 == "Not during the past month" ~ 0,
+    Q11.13 == "Less than once a week" ~ 1, 
+    Q11.13 == "Once or twice a week" ~ 2,
+    Q11.13 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5f = case_when(
+    Q11.14 == "Not during the past month" ~ 0,
+    Q11.14 == "Less than once a week" ~ 1, 
+    Q11.14 == "Once or twice a week" ~ 2,
+    Q11.14 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5g = case_when(
+    Q11.16 == "Not during the past month" ~ 0,
+    Q11.16 == "Less than once a week" ~ 1, 
+    Q11.16 == "Once or twice a week" ~ 2,
+    Q11.16 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5h = case_when(
+    Q11.17 == "Not during the past month" ~ 0,
+    Q11.17 == "Less than once a week" ~ 1, 
+    Q11.17 == "Once or twice a week" ~ 2,
+    Q11.17 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5i = case_when(
+    Q11.18 == "Not during the past month" ~ 0,
+    Q11.18 == "Less than once a week" ~ 1, 
+    Q11.18 == "Once or twice a week" ~ 2,
+    Q11.18 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC5j = ifelse(nchar(Q11.19) > 0, 2, 0)) %>%
+  mutate(SC5sum = SC5b + SC5c + SC5d + SC5e + SC5f + SC5g + SC5h + SC5i + SC5j) %>%
+  mutate(SC5 = case_when(
+    SC5sum == 0 ~ 0, 
+    SC5sum >= 1 & SC5sum <= 9 ~ 1, 
+    SC5sum >= 10 & SC5sum <= 18 ~ 2,
+    SC5sum >= 19 & SC5sum <= 27 ~ 3
+  )) %>%
+  select(-SC5b, -SC5c, -SC5d, -SC5e, -SC5f, -SC5g, -SC5h, -SC5i, -SC5j, SC5sum)
+
+# CREATION OF SC6 - Q6/Q11.20
+
+df <- df %>%
+  mutate(SC6 = case_when(
+    Q11.20 == "Not during the past month" ~ 0,
+    Q11.20 == "Less than once a week" ~ 1, 
+    Q11.20 == "Once or twice a week" ~ 2,
+    Q11.20 == "Three or more times a week" ~ 3,
+    TRUE ~ NA_real_
+  ))
+
+# CREATION OF SC7 - Q7,8/Q11.21,22
+
+df <- df %>%
+  mutate(SC7a = case_when(
+    Q11.21 == "Not during the past month" ~ 0, 
+    Q11.21 == "Less than once a week" ~ 1,
+    Q11.21 == "Once or twice a week" ~ 2, 
+    Q11.21 == "Three or more times a week" ~ 3
+  )) %>%
+  mutate(SC7b = case_when(
+    Q11.22 == "No problem at all" ~ 0, 
+    Q11.22 == "Only a very slight problem" ~ 1, 
+    Q11.22 == "Somewhat of a problem" ~ 2, 
+    Q11.22 == "A very big problem" ~ 3
+  )) %>%
+  mutate(SC7sum = SC7a + SC7b) %>%
+  mutate(SC7 = case_when(
+    SC7sum == 0 ~ 0,
+    SC7sum >= 1 & SC7sum <= 2 ~ 1, 
+    SC7sum >= 3 & SC7sum <= 4 ~ 2, 
+    SC7sum >= 5 & SC7sum <= 6 ~ 3
+  )) %>%
+  select(-SC7a, -SC7b, -SC7sum)
+
+# Adding up PSQI
+
+df <- df %>%
+  mutate(PSQI = SC1 + SC2 + SC3 + SC4 + SC5 + SC6 + SC7)
