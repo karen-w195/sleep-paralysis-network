@@ -1,5 +1,25 @@
 # HIERARCHICAL LINEAR REGRESSION
 # Check missing values
+subset_s = df_s[c("sp_freq_coded",
+              "age_coded",
+              "education_coded",
+              "is_female",
+              "PSQI",
+              "caffetine_factor_FA",
+              "family_factor_FA",
+              "nicotine_factor_FA",
+              "alc_factor_FA")]
+
+subset_ns = df_ns[c("sp_freq_coded",
+                  "age_coded",
+                  "education_coded",
+                  "is_female",
+                  "PSQI",
+                  "caffetine_factor_FA",
+                  "family_factor_FA",
+                  "nicotine_factor_FA",
+                  "alc_factor_FA")]
+
 subset = df[c("sp_freq_coded",
               "age_coded",
               "education_coded",
@@ -8,19 +28,95 @@ subset = df[c("sp_freq_coded",
               "PSQI",
               "caffetine_factor_FA",
               "family_factor_FA",
-              "nicotine_factor_FA",
               "napping_factor_FA",
               "alc_factor_FA")]
 
 colSums(is.na(subset))
 
+df_complete_s <- df_s[complete.cases(subset_s), ]
+df_complete_ns <- df_ns[complete.cases(subset_ns), ]
 df_complete <- df[complete.cases(subset), ]
 
+# Student Sample
+# Building the models
+m0 <- lm(sp_freq_coded ~ 1, data = df_complete_s, na.action = NULL)
+m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female, data = df_complete_s, na.action = NULL)
+m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI, data = df_complete_s, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI + caffetine_factor_FA + alc_factor_FA + napping_factor_FA + family_factor_FA, data = df_complete_s, na.action = NULL)
+# anova comparison
+anova(m0)
+anova(m0, m1, m2, m3)
+anova_results <- anova(m1, m2, m3)
+# summary stats
+summary(m1)
+summary(m2)
+summary(m3)
+
+# checking assumptions
+install.packages("car")
+library(car)
+
+plot(m1, which = 1)
+plot(m1, which = 2)
+plot(df_complete$sp_freq_coded, residuals(m1))
+vif(m1)
+plot(m2, which = 1)
+plot(m2, which = 2)
+plot(df_complete$sp_freq_coded, residuals(m2))
+vif(m2)
+plot(m3, which = 1)
+plot(m3, which = 2)
+plot(df_complete$sp_freq_coded, residuals(m3))
+vif(m3)
+
+install.packages("stargazer") 
+library(stargazer)
+
+stargazer(anova_results, type = "text")
+
+# Non-student Sample
+# Building the models
+m0 <- lm(sp_freq_coded ~ 1, data = df_complete_ns, na.action = NULL)
+m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female, data = df_complete_ns, na.action = NULL)
+m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI, data = df_complete_ns, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI + caffetine_factor_FA + alc_factor_FA + napping_factor_FA + family_factor_FA, data = df_complete_ns, na.action = NULL)
+# anova comparison
+anova(m0)
+anova(m0, m1, m2, m3)
+anova_results <- anova(m1, m2, m3)
+# summary stats
+summary(m1)
+summary(m2)
+summary(m3)
+
+# checking assumptions
+install.packages("car")
+library(car)
+
+plot(m1, which = 1)
+plot(m1, which = 2)
+plot(df_complete$sp_freq_coded, residuals(m1))
+vif(m1)
+plot(m2, which = 1)
+plot(m2, which = 2)
+plot(df_complete$sp_freq_coded, residuals(m2))
+vif(m2)
+plot(m3, which = 1)
+plot(m3, which = 2)
+plot(df_complete$sp_freq_coded, residuals(m3))
+vif(m3)
+
+install.packages("stargazer") 
+library(stargazer)
+
+stargazer(anova_results, type = "text")
+
+# Full Sample
 # Building the models
 m0 <- lm(sp_freq_coded ~ 1, data = df_complete, na.action = NULL)
 m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + student_coded, data = df_complete, na.action = NULL)
 m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + student_coded + PSQI, data = df_complete, na.action = NULL)
-m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + student_coded + PSQI + caffetine_factor_FA + alc_factor_FA + napping_factor_FA + family_factor_FA + nicotine_factor_FA, data = df_complete, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + student_coded + PSQI + caffetine_factor_FA + alc_factor_FA + napping_factor_FA + family_factor_FA, data = df_complete, na.action = NULL)
 # anova comparison
 anova(m0)
 anova(m0, m1, m2, m3)
