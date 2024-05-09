@@ -1,0 +1,132 @@
+# Network
+
+# Load packages
+library("bootnet")
+library("psychTools")
+install.packages("psychonetrics")
+library("psychonetrics")
+
+# Load data
+subset  = c("sp_freq_coded",
+            "age_coded",
+            "education_coded",
+            "PSQI",
+            "caffetine_factor_FA",
+            "family_factor_FA",
+            "napping_factor_FA",
+            "alc_factor_FA")
+
+input_s <- df_complete_s[,subset]
+input_ns <- df_complete_ns[,subset]
+input <- df_complete[,subset]
+
+# Baseline Networks:
+bootnet_base_s <- estimateNetwork(input_s, 
+                                default = "pcor", 
+                                corMethod= "cor")
+bootnet_base_ns <- estimateNetwork(input_ns, 
+                                  default = "pcor", 
+                                  corMethod= "cor")
+bootnet_base <- estimateNetwork(input, 
+                                  default = "pcor", 
+                                  corMethod= "cor")
+
+L <- averageLayout(bootnet_base_s, bootnet_base_ns,bootnet_base)
+layout(t(1:3))
+plot(bootnet_base_s, filetype = "jpg", filename = "bootnet_base_s",layout = L, title  = "bootnet_base_s")
+plot(bootnet_base_ns, filetype = "jpg", filename = "bootnet_base_ns",layout = L, title  = "bootnet_base_ns")
+plot(bootnet_base, filetype = "jpg", filename = "bootnet_base",layout = L, title  = "bootnet_base")
+
+
+# Corrected for ordinal variables (3-4 levels)
+# Threshold p<0.05
+
+bootnet_thres_s <- estimateNetwork(input_s, 
+                                  default = "pcor", 
+                                  corMethod= "spearman",
+                                  threshold = "sig", 
+                                  alpha = 0.05)
+bootnet_thres_ns <- estimateNetwork(input_ns, 
+                                   default = "pcor", 
+                                   corMethod= "spearman",
+                                   threshold = "sig", 
+                                   alpha = 0.05)
+bootnet_thres <- estimateNetwork(input, 
+                                default = "pcor", 
+                                corMethod= "spearman",
+                                threshold = "sig", 
+                                alpha = 0.05)
+
+L <- averageLayout(bootnet_thres_s, bootnet_thres_ns,bootnet_thres)
+layout(t(1:3))
+plot(bootnet_thres_s, filetype = "jpg", filename = "bootnet_thres_s",layout = L, title  = "bootnet_thres_s")
+plot(bootnet_thres_ns, filetype = "jpg", filename = "bootnet_thres_ns",layout = L, title  = "bootnet_thres_ns")
+plot(bootnet_thres, filetype = "jpg", filename = "bootnet_thres",layout = L, title  = "bootnet_thres")
+
+
+# Add pruning
+model_s <- ggm(input_s) %>% runmodel %>% prune(alpha=0.05)
+model_ns <- ggm(input_ns) %>% runmodel %>% prune(alpha=0.05)
+model <- ggm(input) %>% runmodel %>% prune(alpha=0.05)
+
+psychonetrics_pru_s <- getmatrix(model_s, "omega")
+psychonetrics_pru_ns <- getmatrix(model_ns, "omega")
+psychonetrics_pru <- getmatrix(model, "omega")
+
+L <- averageLayout(psychonetrics_pru_s, psychonetrics_pru_ns,psychonetrics_pru)
+layout(t(1:3))
+qgraph(psychonetrics_pru_s, filetype = "jpg", filename = "psychonetrics_pru_s",layout = L, title  = "psychonetrics_pru_s", theme = "colorblind", cut = 0, nodeNames=subset)
+qgraph(psychonetrics_pru_ns, filetype = "jpg", filename = "psychonetrics_pru_ns",layout = L, title  = "psychonetrics_pru_ns", theme = "colorblind", cut = 0, nodeNames=subset)
+qgraph(psychonetrics_pru, filetype = "jpg", filename = "psychonetrics_pru",layout = L, title  = "psychonetrics_pru", theme = "colorblind", cut = 0, nodeNames=subset)
+
+# Lasso regularization
+lasso_reg_s <- estimateNetwork(input_s, 
+                                   default = "EBICglasso", 
+                                   corMethod= "spearman")
+lasso_reg_ns <- estimateNetwork(input_ns, 
+                                    default = "EBICglasso", 
+                                    corMethod= "spearman")
+lasso_reg <- estimateNetwork(input, 
+                                 default = "EBICglasso", 
+                                 corMethod= "spearman")
+
+L <- averageLayout(lasso_reg_s, lasso_reg_ns,lasso_reg)
+layout(t(1:3))
+plot(lasso_reg_s, filetype = "jpg", filename = "lasso_reg_s",layout = L, title  = "lasso_reg_s")
+plot(lasso_reg_ns, filetype = "jpg", filename = "lasso_reg_ns",layout = L, title  = "lasso_reg_ns")
+plot(lasso_reg, filetype = "jpg", filename = "lasso_reg",layout = L, title  = "lasso_reg")
+
+
+# Model Search - Stepup
+model_s <- ggm(input_s) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+
+model_ns <- ggm(input_ns) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+model <- ggm(input) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+
+psychonetrics_ms_s <- getmatrix(model_s, "omega")
+psychonetrics_ms_ns <- getmatrix(model_ns, "omega")
+psychonetrics_ms <- getmatrix(model, "omega")
+
+L <- averageLayout(psychonetrics_ms_s, psychonetrics_ms_ns,psychonetrics_ms)
+layout(t(1:3))
+qgraph(psychonetrics_ms_s, filetype = "jpg", filename = "psychonetrics_ms_s",layout = L, title  = "psychonetrics_ms_s", theme = "colorblind", cut = 0, nodeNames=subset)
+qgraph(psychonetrics_ms_ns, filetype = "jpg", filename = "psychonetrics_ms_ns",layout = L, title  = "psychonetrics_ms_ns", theme = "colorblind", cut = 0, nodeNames=subset)
+qgraph(psychonetrics_ms, filetype = "jpg", filename = "psychonetrics_ms",layout = L, title  = "psychonetrics_ms", theme = "colorblind", cut = 0, nodeNames=subset)
+
+# Model Search - ggmModSelect
+ggmmodselect_s <- estimateNetwork(input_s, 
+                               default = "ggmModSelect", 
+                               corMethod= "spearman")
+ggmmodselect_ns <- estimateNetwork(input_ns, 
+                                default = "ggmModSelect", 
+                                corMethod= "spearman")
+ggmmodselect <- estimateNetwork(input, 
+                             default = "ggmModSelect", 
+                             corMethod= "spearman")
+
+L <- averageLayout(ggmmodselect_s, ggmmodselect_ns,ggmmodselect)
+layout(t(1:3))
+plot(ggmmodselect_s, filetype = "jpg", filename = "ggmmodselect_s",layout = L, title  = "ggmmodselect_s")
+plot(ggmmodselect_ns, filetype = "jpg", filename = "ggmmodselect_ns",layout = L, title  = "ggmmodselect_ns")
+plot(ggmmodselect, filetype = "jpg", filename = "ggmmodselect",layout = L, title  = "ggmmodselect")
+
