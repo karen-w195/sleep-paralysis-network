@@ -123,8 +123,102 @@ summary(m2)
 summary(m3)
 
 
+# HIERARCHICAL LINEAR REGRESSION 2
+subset_s2 = df_s[c("sp_freq_coded",
+                  "age_coded",
+                  "education_coded",
+                  "is_female",
+                  "SC1",
+                  "SC2",
+                  "SC3",
+                  "SC4",
+                  "SC5",
+                  "SC6",
+                  "SC7",
+                  "caffetine_factor_mean",
+                  "nicotine_factor_mean",
+                  "family_factor_mean",
+                  "napping_factor_mean",
+                  "alc_factor_mean")]
+
+subset_ns2 = df_ns[c("sp_freq_coded",
+                    "age_coded",
+                    "education_coded",
+                    "is_female",
+                    "SC1",
+                    "SC2",
+                    "SC3",
+                    "SC4",
+                    "SC5",
+                    "SC6",
+                    "SC7",
+                    "caffetine_factor_mean",
+                    "nicotine_factor_mean",
+                    "family_factor_mean",
+                    "napping_factor_mean",
+                    "alc_factor_mean")]
+
+subset2 = df[c("sp_freq_coded",
+              "age_coded",
+              "education_coded",
+              "is_female",
+              "SC1",
+              "SC2",
+              "SC3",
+              "SC4",
+              "SC5",
+              "SC6",
+              "SC7",
+              "caffetine_factor_mean",
+              "nicotine_factor_mean",
+              "family_factor_mean",
+              "napping_factor_mean",
+              "alc_factor_mean")]
+
+df_complete_s2 <- df_s[complete.cases(subset_s2), ]
+df_complete_ns2 <- df_ns[complete.cases(subset_ns2), ]
+df_complete2 <- df[complete.cases(subset2), ]
+
+# Student Sample
+# Building the models
+m0 <- lm(sp_freq_coded ~ 1, data = df_complete_s2, na.action = NULL)
+m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female, data = df_complete_s2, na.action = NULL)
+m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + SC1 + SC2 + SC3 + SC4 + SC5 + SC6 + SC7, data = df_complete_s2, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + + SC1 + SC2 + SC3 + SC4 + SC5 + SC6 + SC7 + caffetine_factor_mean + nicotine_factor_mean + alc_factor_mean + napping_factor_mean + family_factor_mean, data = df_complete_s2, na.action = NULL)
+# anova comparison
+anova(m0)
+anova(m0, m1, m2, m3)
+anova_results <- anova(m1, m2, m3)
+# summary stats
+summary(m1)
+summary(m2)
+summary(m3)
+
+# Non-student Sample
+# Building the models
+m0 <- lm(sp_freq_coded ~ 1, data = df_complete_ns2, na.action = NULL)
+m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female, data = df_complete_ns2, na.action = NULL)
+m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + SC1 + SC2 + SC3 + SC4 + SC5 + SC6 + SC7, data = df_complete_ns2, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + SC1 + SC2 + SC3 + SC4 + SC5 + SC6 + SC7 + caffetine_factor_mean + nicotine_factor_mean + alc_factor_mean + napping_factor_mean + family_factor_mean, data = df_complete_ns2, na.action = NULL)
+# anova comparison
+anova(m0)
+anova(m0, m1, m2, m3)
+anova_results <- anova(m1, m2, m3)
+# summary stats
+summary(m1)
+summary(m2)
+summary(m3)
+
+
 # Network
 library("qgraph")
+options(rgl.printRglwidget = TRUE, rgl.useNULL = TRUE)
+install.packages("rgl")
+library("rgl")
+install.packages("bootnet")
+library("bootnet")
+
+# Model 1: PSQI+others
 subset1  = c("sp_freq_coded",
             "age_coded",
             "education_coded",
@@ -139,20 +233,108 @@ input_s <- df_complete_s[,subset1]
 input_ns <- df_complete_ns[,subset1]
 input <- df_complete[,subset1]
 
-# Add pruning
-model_s <- ggm(input_s) %>% runmodel %>% prune(alpha=0.05)
-model_ns <- ggm(input_ns) %>% runmodel %>% prune(alpha=0.05)
-model <- ggm(input) %>% runmodel %>% prune(alpha=0.05)
+# Bootnet threshold
+bootnet_thres_s <- estimateNetwork(input_s, 
+                                   default = "pcor", 
+                                   corMethod= "spearman",
+                                   threshold = "sig", 
+                                   alpha = 0.05)
+bootnet_thres_ns <- estimateNetwork(input_ns, 
+                                    default = "pcor", 
+                                    corMethod= "spearman",
+                                    threshold = "sig", 
+                                    alpha = 0.05)
+bootnet_thres <- estimateNetwork(input, 
+                                 default = "pcor", 
+                                 corMethod= "spearman",
+                                 threshold = "sig", 
+                                 alpha = 0.05)
 
-psychonetrics_pru_s <- getmatrix(model_s, "omega")
-psychonetrics_pru_ns <- getmatrix(model_ns, "omega")
-psychonetrics_pru <- getmatrix(model, "omega")
+network_s <- 1*(bootnet_thres_s$graph != 0)
+network_ns <- 1*(bootnet_thres_ns$graph != 0)
+network <- 1*(bootnet_thres$graph != 0)
 
-L <- averageLayout(psychonetrics_pru_s, psychonetrics_pru_ns,psychonetrics_pru)
+m1_bootnet_thres_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m1_bootnet_thres_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m1_bootnet_thres <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# GGM pruning
+m1_ggm_prune_s <- ggm(input_s) %>% runmodel %>% prune(alpha=0.05)
+m1_ggm_prune_ns <- ggm(input_ns) %>% runmodel %>% prune(alpha=0.05)
+m1_ggm_prune <- ggm(input) %>% runmodel %>% prune(alpha=0.05)
+
+# Lasso regulation
+lasso_reg_s <- estimateNetwork(input_s, 
+                               default = "EBICglasso", 
+                               corMethod= "spearman")
+lasso_reg_ns <- estimateNetwork(input_ns, 
+                                default = "EBICglasso", 
+                                corMethod= "spearman")
+lasso_reg <- estimateNetwork(input, 
+                             default = "EBICglasso", 
+                             corMethod= "spearman")
+
+network_s <- 1*(lasso_reg_s$graph != 0)
+network_ns <- 1*(lasso_reg_ns$graph != 0)
+network <- 1*(lasso_reg$graph != 0)
+
+m1_lasso_reg_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m1_lasso_reg_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m1_lasso_reg <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# ggmModSelect
+ggmmodselect_s <- estimateNetwork(input_s, 
+                                  default = "ggmModSelect", 
+                                  corMethod= "spearman")
+ggmmodselect_ns <- estimateNetwork(input_ns, 
+                                   default = "ggmModSelect", 
+                                   corMethod= "spearman")
+ggmmodselect <- estimateNetwork(input, 
+                                default = "ggmModSelect", 
+                                corMethod= "spearman")
+
+network_s <- 1*(ggmmodselect_s$graph != 0)
+network_ns <- 1*(ggmmodselect_ns$graph != 0)
+network <- 1*(ggmmodselect$graph != 0)
+
+m1_ggmmodselect_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m1_ggmmodselect_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m1_ggmmodselect <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# Stepup model search
+m1_stepup_s <- ggm(input_s) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+m1_stepup_ns <- ggm(input_ns) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+m1_stepup <- ggm(input) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+
+# Compare all models
+compare(m1_bootnet_thres=m1_bootnet_thres, m1_ggm_prune=m1_ggm_prune, m1_lasso_reg = m1_lasso_reg, m1_ggmmodselect=m1_ggmmodselect,m1_stepup=m1_stepup)
+compare(m1_bootnet_thres_s=m1_bootnet_thres_s, m1_ggm_prune_s=m1_ggm_prune_s, m1_lasso_reg_s = m1_lasso_reg_s, m1_ggmmodselect_s=m1_ggmmodselect_s,m1_stepup_s=m1_stepup_s)
+compare(m1_bootnet_thres_ns=m1_bootnet_thres_ns, m1_ggm_prune_ns=m1_ggm_prune_ns, m1_lasso_reg_ns = m1_lasso_reg_ns, m1_ggmmodselect_ns=m1_ggmmodselect_ns,m1_stepup_ns=m1_stepup_ns)
+
+m1_stepup %>% parameters
+
+# Plot the network
+matrix_s <- getmatrix(m1_stepup_s, "omega")
+matrix_ns <- getmatrix(m1_stepup_ns, "omega")
+matrix <- getmatrix(m1_stepup, "omega")
+
+L <- averageLayout(matrix_s, matrix_ns,matrix)
 layout(t(1:3))
-qgraph(psychonetrics_pru_s, filetype = "jpg", filename = "psychonetrics_pru_s_new",layout = L, title  = "psychonetrics_pru_s", theme = "colorblind", cut = 0, nodeNames=subset1)
-qgraph(psychonetrics_pru_ns, filetype = "jpg", filename = "psychonetrics_pru_ns_new",layout = L, title  = "psychonetrics_pru_ns", theme = "colorblind", cut = 0, nodeNames=subset1)
-qgraph(psychonetrics_pru, filetype = "jpg", filename = "psychonetrics_pru_new",layout = L, title  = "psychonetrics_pru", theme = "colorblind", cut = 0, nodeNames=subset1)
+qgraph(matrix_s, filetype = "jpg", filename = "m1_stepup_s",layout = L, title  = "m1_stepup_s", theme = "colorblind", cut = 0, nodeNames=subset1)
+qgraph(matrix_ns, filetype = "jpg", filename = "m1_stepup_ns",layout = L, title  = "m1_stepup_ns", theme = "colorblind", cut = 0, nodeNames=subset1)
+qgraph(matrix, filetype = "jpg", filename = "m1_stepup",layout = L, title  = "m1_stepup", theme = "colorblind", cut = 0, nodeNames=subset1)
+
+# Centrality indices
+centralityPlot(matrix_s, include = "all", orderBy = "ExpectedInfluence",labels=subset1)
+centralityPlot(matrix_ns, include = "all", orderBy = "ExpectedInfluence",labels=subset1)
+centralityPlot(matrix, include = "all", orderBy = "ExpectedInfluence",labels=subset1)
+
+# Edge stability
+CIplot(m1_stepup_s, "omega", labels = subset1, labelstart = 0.2)
+CIplot(m1_stepup_ns, "omega", labels = subset1, labelstart = 0.2)
+CIplot(m1_stepup, "omega", labels = subset1, labelstart = 0.2)
+
+# Model 2: SC1-7+others
 
 subset2  = c("sp_freq_coded",
              "age_coded",
@@ -170,22 +352,108 @@ subset2  = c("sp_freq_coded",
              "napping_factor_mean",
              "alc_factor_mean")
 
-input_s2 <- df_complete_s[,subset2]
-input_ns2 <- df_complete_ns[,subset2]
-input2 <- df_complete[,subset2]
+input_s <- df_complete_s[,subset2]
+input_ns <- df_complete_ns[,subset2]
+input <- df_complete[,subset2]
 
-# Add pruning
-model_s2 <- ggm(input_s2) %>% runmodel %>% prune(alpha=0.05)
-model_ns2 <- ggm(input_ns2) %>% runmodel %>% prune(alpha=0.05)
-model2 <- ggm(input2) %>% runmodel %>% prune(alpha=0.05)
+# Bootnet threshold
+bootnet_thres_s <- estimateNetwork(input_s, 
+                                   default = "pcor", 
+                                   corMethod= "spearman",
+                                   threshold = "sig", 
+                                   alpha = 0.05)
+bootnet_thres_ns <- estimateNetwork(input_ns, 
+                                    default = "pcor", 
+                                    corMethod= "spearman",
+                                    threshold = "sig", 
+                                    alpha = 0.05)
+bootnet_thres <- estimateNetwork(input, 
+                                 default = "pcor", 
+                                 corMethod= "spearman",
+                                 threshold = "sig", 
+                                 alpha = 0.05)
 
-psychonetrics_pru_s2 <- getmatrix(model_s2, "omega")
-psychonetrics_pru_ns2 <- getmatrix(model_ns2, "omega")
-psychonetrics_pru2 <- getmatrix(model2, "omega")
+network_s <- 1*(bootnet_thres_s$graph != 0)
+network_ns <- 1*(bootnet_thres_ns$graph != 0)
+network <- 1*(bootnet_thres$graph != 0)
 
-L <- averageLayout(psychonetrics_pru_s2, psychonetrics_pru_ns2, psychonetrics_pru2)
+m2_bootnet_thres_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m2_bootnet_thres_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m2_bootnet_thres <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# GGM pruning
+m2_ggm_prune_s <- ggm(input_s) %>% runmodel %>% prune(alpha=0.05)
+m2_ggm_prune_ns <- ggm(input_ns) %>% runmodel %>% prune(alpha=0.05)
+m2_ggm_prune <- ggm(input) %>% runmodel %>% prune(alpha=0.05)
+
+# Lasso regulation
+lasso_reg_s <- estimateNetwork(input_s, 
+                               default = "EBICglasso", 
+                               corMethod= "spearman")
+lasso_reg_ns <- estimateNetwork(input_ns, 
+                                default = "EBICglasso", 
+                                corMethod= "spearman")
+lasso_reg <- estimateNetwork(input, 
+                             default = "EBICglasso", 
+                             corMethod= "spearman")
+
+network_s <- 1*(lasso_reg_s$graph != 0)
+network_ns <- 1*(lasso_reg_ns$graph != 0)
+network <- 1*(lasso_reg$graph != 0)
+
+m2_lasso_reg_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m2_lasso_reg_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m2_lasso_reg <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# ggmModSelect
+ggmmodselect_s <- estimateNetwork(input_s, 
+                                  default = "ggmModSelect", 
+                                  corMethod= "spearman")
+ggmmodselect_ns <- estimateNetwork(input_ns, 
+                                   default = "ggmModSelect", 
+                                   corMethod= "spearman")
+ggmmodselect <- estimateNetwork(input, 
+                                default = "ggmModSelect", 
+                                corMethod= "spearman")
+
+network_s <- 1*(ggmmodselect_s$graph != 0)
+network_ns <- 1*(ggmmodselect_ns$graph != 0)
+network <- 1*(ggmmodselect$graph != 0)
+
+m2_ggmmodselect_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m2_ggmmodselect_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m2_ggmmodselect <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# Stepup model search
+m2_stepup_s <- ggm(input_s) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+m2_stepup_ns <- ggm(input_ns) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+m2_stepup <- ggm(input) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+
+# Compare all models
+compare(m2_bootnet_thres=m2_bootnet_thres, m2_ggm_prune=m2_ggm_prune, m2_lasso_reg = m2_lasso_reg, m2_ggmmodselect=m2_ggmmodselect,m2_stepup=m2_stepup)
+compare(m2_bootnet_thres_s=m2_bootnet_thres_s, m2_ggm_prune_s=m2_ggm_prune_s, m2_lasso_reg_s = m2_lasso_reg_s, m2_ggmmodselect_s=m2_ggmmodselect_s,m2_stepup_s=m2_stepup_s)
+compare(m2_bootnet_thres_ns=m2_bootnet_thres_ns, m2_ggm_prune_ns=m2_ggm_prune_ns, m2_lasso_reg_ns = m2_lasso_reg_ns, m2_ggmmodselect_ns=m2_ggmmodselect_ns,m2_stepup_ns=m2_stepup_ns)
+
+m2_stepup %>% parameters
+
+# Plot the network
+matrix_s <- getmatrix(m2_stepup_s, "omega")
+matrix_ns <- getmatrix(m2_stepup_ns, "omega")
+matrix <- getmatrix(m2_stepup, "omega")
+
+L <- averageLayout(matrix_s, matrix_ns,matrix)
 layout(t(1:3))
-color = c("Target", rep("Demographic",2), rep("Sleep Quality Items",7), rep("Behavioral Factors",4))
-qgraph(psychonetrics_pru_s2, filetype = "jpg", filename = "psychonetrics_pru_s2_new",layout = L, title  = "psychonetrics_pru_s2", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
-qgraph(psychonetrics_pru_ns2, filetype = "jpg", filename = "psychonetrics_pru_ns2_new",layout = L, title  = "psychonetrics_pru_ns2", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
-qgraph(psychonetrics_pru2, filetype = "jpg", filename = "psychonetrics_pru2_new",layout = L, title  = "psychonetrics_pru2", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
+color = c("Target", rep("Demographic",2), rep("Sleep Quality Items",7), rep("Behavioral Factors",5))
+qgraph(matrix_s, filetype = "jpg", filename = "m2_stepup_s",layout = L, title  = "m2_stepup_s", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
+qgraph(matrix_ns, filetype = "jpg", filename = "m2_stepup_ns",layout = L, title  = "m2_stepup_ns", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
+qgraph(matrix, filetype = "jpg", filename = "m2_stepup",layout = L, title  = "m2_stepup", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
+
+# Centrality indices
+centralityPlot(matrix_s, include = "all", orderBy = "ExpectedInfluence",labels=subset2)
+centralityPlot(matrix_ns, include = "all", orderBy = "ExpectedInfluence",labels=subset2)
+centralityPlot(matrix, include = "all", orderBy = "ExpectedInfluence",labels=subset2)
+
+# Edge stability
+CIplot(m2_stepup_s, "omega", labels = subset2, labelstart = 0.2)
+CIplot(m2_stepup_ns, "omega", labels = subset2, labelstart = 0.2)
+CIplot(m2_stepup, "omega", labels = subset2, labelstart = 0.2)
