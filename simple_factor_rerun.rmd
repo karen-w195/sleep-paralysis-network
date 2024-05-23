@@ -1,0 +1,191 @@
+setwd("/Users/karenwang/Documents/Sleep Paralysis")
+
+# Import and clean up redundant rows
+df <- read.csv("data_coded.csv", header=TRUE)
+
+# Normalize behavioral scores between 0 and 1
+library(caret)
+# alcohol
+df <- df %>% 
+  mutate(alc_per_week_adj = predict(preProcess(as.data.frame(alc_per_week), method=c("range")), as.data.frame(alc_per_week))) 
+df <- df %>% 
+  mutate(alc_at_once_adj = predict(preProcess(as.data.frame(alc_at_once), method=c("range")), as.data.frame(alc_at_once))) 
+df <- df %>% 
+  mutate(alc_nights_per_week_adj = predict(preProcess(as.data.frame(alc_nights_per_week), method=c("range")), as.data.frame(alc_nights_per_week))) 
+# caffeine
+df <- df %>% 
+  mutate(caffetine_per_week_adj = predict(preProcess(as.data.frame(caffetine_per_week), method=c("range")), as.data.frame(caffetine_per_week))) 
+df <- df %>% 
+  mutate(caffetine_per_day_adj = predict(preProcess(as.data.frame(caffetine_per_day), method=c("range")), as.data.frame(caffetine_per_day))) 
+# nicotine
+df <- df %>% 
+  mutate(nicotine_per_week_adj = predict(preProcess(as.data.frame(nicotine_per_week), method=c("range")), as.data.frame(nicotine_per_week))) 
+df <- df %>% 
+  mutate(nicotine_per_day_adj = predict(preProcess(as.data.frame(nicotine_per_day), method=c("range")), as.data.frame(nicotine_per_day))) 
+# family
+df <- df %>% 
+  mutate(family_number_coded_adj = predict(preProcess(as.data.frame(family_number_coded), method=c("range")), as.data.frame(family_number_coded))) 
+# napping
+df <- df %>% 
+  mutate(napping_coded_adj = predict(preProcess(as.data.frame(napping_coded), method=c("range")), as.data.frame(napping_coded))) 
+df <- df %>% 
+  mutate(napping_length_coded_adj = predict(preProcess(as.data.frame(napping_length_coded), method=c("range")), as.data.frame(napping_length_coded))) 
+
+# Compute behavioral factor manually
+# Alcohol Factor 
+df$alc_factor_mean <- rowMeans(df[,c("alc_use_coded", "alc_per_week_adj", "alc_at_once_adj", "alc_nights_per_week_adj")], na.rm = TRUE)
+# Caffeine Factor
+df$caffetine_factor_mean <- rowMeans(df[,c("caffetine_use_coded", "caffetine_per_week_adj", "caffetine_per_day_adj")], na.rm = TRUE)
+# Nicotine Factor
+df$nicotine_factor_mean <- rowMeans(df[,c("nicotine_use_coded", "nicotine_per_week_adj", "nicotine_per_day_adj")], na.rm = TRUE)
+# Family Factor
+df$family_factor_mean <- rowMeans(df[,c("family_members_coded", "family_number_coded_adj")], na.rm = TRUE)
+# Napping Factor
+df$napping_factor_mean <- rowMeans(df[,c("napping_coded_adj", "napping_length_coded_adj")], na.rm = TRUE)
+
+#install.packages("Rfast")
+library("Rfast")
+factor_cols = c("alc_factor_mean","caffetine_factor_mean","nicotine_factor_mean","family_factor_mean","napping_factor_mean")
+colskewness(as.matrix(df[,factor_cols]))
+colkurtosis(as.matrix(df[,factor_cols]))
+
+# Split sample into student vs. non-student
+df_s <- df[df$student_coded ==1, ]
+df_ns <- df[df$student_coded ==0, ]
+
+# HIERARCHICAL LINEAR REGRESSION
+# Check missing values
+subset_s = df_s[c("sp_freq_coded",
+                  "age_coded",
+                  "education_coded",
+                  "is_female",
+                  "PSQI",
+                  "caffetine_factor_mean",
+                  "nicotine_factor_mean",
+                  "family_factor_mean",
+                  "napping_factor_mean",
+                  "alc_factor_mean")]
+
+subset_ns = df_ns[c("sp_freq_coded",
+                    "age_coded",
+                    "education_coded",
+                    "is_female",
+                    "PSQI",
+                    "caffetine_factor_mean",
+                    "nicotine_factor_mean",
+                    "family_factor_mean",
+                    "napping_factor_mean",
+                    "alc_factor_mean")]
+
+subset = df[c("sp_freq_coded",
+                  "age_coded",
+                  "education_coded",
+                  "is_female",
+                  "PSQI",
+                  "caffetine_factor_mean",
+                  "nicotine_factor_mean",
+                  "family_factor_mean",
+                  "napping_factor_mean",
+                  "alc_factor_mean")]
+
+df_complete_s <- df_s[complete.cases(subset_s), ]
+df_complete_ns <- df_ns[complete.cases(subset_ns), ]
+df_complete <- df[complete.cases(subset), ]
+
+# Student Sample
+# Building the models
+m0 <- lm(sp_freq_coded ~ 1, data = df_complete_s, na.action = NULL)
+m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female, data = df_complete_s, na.action = NULL)
+m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI, data = df_complete_s, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI + caffetine_factor_mean + nicotine_factor_mean + alc_factor_mean + napping_factor_mean + family_factor_mean, data = df_complete_s, na.action = NULL)
+# anova comparison
+anova(m0)
+anova(m0, m1, m2, m3)
+anova_results <- anova(m1, m2, m3)
+# summary stats
+summary(m1)
+summary(m2)
+summary(m3)
+
+# Non-student Sample
+# Building the models
+m0 <- lm(sp_freq_coded ~ 1, data = df_complete_ns, na.action = NULL)
+m1 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female, data = df_complete_ns, na.action = NULL)
+m2 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI, data = df_complete_ns, na.action = NULL)
+m3 <- lm(sp_freq_coded ~ age_coded + education_coded + is_female + PSQI + caffetine_factor_mean + nicotine_factor_mean + alc_factor_mean + napping_factor_mean + family_factor_mean, data = df_complete_ns, na.action = NULL)
+# anova comparison
+anova(m0)
+anova(m0, m1, m2, m3)
+anova_results <- anova(m1, m2, m3)
+# summary stats
+summary(m1)
+summary(m2)
+summary(m3)
+
+
+# Network
+library("qgraph")
+subset1  = c("sp_freq_coded",
+            "age_coded",
+            "education_coded",
+            "PSQI",
+            "caffetine_factor_mean",
+            "nicotine_factor_mean",
+            "family_factor_mean",
+            "napping_factor_mean",
+            "alc_factor_mean")
+
+input_s <- df_complete_s[,subset1]
+input_ns <- df_complete_ns[,subset1]
+input <- df_complete[,subset1]
+
+# Add pruning
+model_s <- ggm(input_s) %>% runmodel %>% prune(alpha=0.05)
+model_ns <- ggm(input_ns) %>% runmodel %>% prune(alpha=0.05)
+model <- ggm(input) %>% runmodel %>% prune(alpha=0.05)
+
+psychonetrics_pru_s <- getmatrix(model_s, "omega")
+psychonetrics_pru_ns <- getmatrix(model_ns, "omega")
+psychonetrics_pru <- getmatrix(model, "omega")
+
+L <- averageLayout(psychonetrics_pru_s, psychonetrics_pru_ns,psychonetrics_pru)
+layout(t(1:3))
+qgraph(psychonetrics_pru_s, filetype = "jpg", filename = "psychonetrics_pru_s_new",layout = L, title  = "psychonetrics_pru_s", theme = "colorblind", cut = 0, nodeNames=subset1)
+qgraph(psychonetrics_pru_ns, filetype = "jpg", filename = "psychonetrics_pru_ns_new",layout = L, title  = "psychonetrics_pru_ns", theme = "colorblind", cut = 0, nodeNames=subset1)
+qgraph(psychonetrics_pru, filetype = "jpg", filename = "psychonetrics_pru_new",layout = L, title  = "psychonetrics_pru", theme = "colorblind", cut = 0, nodeNames=subset1)
+
+subset2  = c("sp_freq_coded",
+             "age_coded",
+             "education_coded",
+             "SC1",
+             "SC2",
+             "SC3",
+             "SC4",
+             "SC5",
+             "SC6",
+             "SC7",
+             "caffetine_factor_mean",
+             "nicotine_factor_mean",
+             "family_factor_mean",
+             "napping_factor_mean",
+             "alc_factor_mean")
+
+input_s2 <- df_complete_s[,subset2]
+input_ns2 <- df_complete_ns[,subset2]
+input2 <- df_complete[,subset2]
+
+# Add pruning
+model_s2 <- ggm(input_s2) %>% runmodel %>% prune(alpha=0.05)
+model_ns2 <- ggm(input_ns2) %>% runmodel %>% prune(alpha=0.05)
+model2 <- ggm(input2) %>% runmodel %>% prune(alpha=0.05)
+
+psychonetrics_pru_s2 <- getmatrix(model_s2, "omega")
+psychonetrics_pru_ns2 <- getmatrix(model_ns2, "omega")
+psychonetrics_pru2 <- getmatrix(model2, "omega")
+
+L <- averageLayout(psychonetrics_pru_s2, psychonetrics_pru_ns2, psychonetrics_pru2)
+layout(t(1:3))
+color = c("Target", rep("Demographic",2), rep("Sleep Quality Items",7), rep("Behavioral Factors",4))
+qgraph(psychonetrics_pru_s2, filetype = "jpg", filename = "psychonetrics_pru_s2_new",layout = L, title  = "psychonetrics_pru_s2", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
+qgraph(psychonetrics_pru_ns2, filetype = "jpg", filename = "psychonetrics_pru_ns2_new",layout = L, title  = "psychonetrics_pru_ns2", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
+qgraph(psychonetrics_pru2, filetype = "jpg", filename = "psychonetrics_pru2_new",layout = L, title  = "psychonetrics_pru2", theme = "colorblind", cut = 0, nodeNames=subset2,groups=color)
