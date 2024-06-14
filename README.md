@@ -5,6 +5,7 @@ Reference: https://github.com/mikeyfresh102/student-sleep-paralysis
 Code sequence:
 - demongraphic encoding.rmd
 - sleep_quality_encoding.rmd
+- risk_factor_encoding.rmd
 - descriptive_stats_anova.rmd
 - hierarchical_linear_regression.rmd
 - network_estimation.rmd
