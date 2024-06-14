@@ -1,0 +1,207 @@
+# Network
+
+# Load packages
+library("bootnet")
+library("psychTools")
+#install.packages("psychonetrics")
+library("psychonetrics")
+library("qgraph")
+options(rgl.printRglwidget = TRUE, rgl.useNULL = TRUE)
+#install.packages("rgl")
+library("rgl")
+library("dplyr")
+library("magrittr")
+
+# Load data
+subset3  = c("sp_freq_coded",
+             "age_coded",
+             "education_coded",
+             "SC1",
+             "SC2",
+             "SC3",
+             "SC4",
+             "SC5",
+             "SC6",
+             "SC7",
+             "napping_factor_mean")
+
+input_s <- df_complete_s[,subset3]
+input_ns <- df_complete_ns[,subset3]
+
+count(input_s)
+count(input_ns)
+
+# Bootnet threshold
+bootnet_thres_s <- estimateNetwork(input_s, 
+                                   default = "pcor", 
+                                   corMethod= "spearman",
+                                   threshold = "sig", 
+                                   alpha = 0.05)
+bootnet_thres_ns <- estimateNetwork(input_ns, 
+                                    default = "pcor", 
+                                    corMethod= "spearman",
+                                    threshold = "sig", 
+                                    alpha = 0.05)
+bootnet_thres <- estimateNetwork(input, 
+                                 default = "pcor", 
+                                 corMethod= "spearman",
+                                 threshold = "sig", 
+                                 alpha = 0.05)
+
+network_s <- 1*(bootnet_thres_s$graph != 0)
+network_ns <- 1*(bootnet_thres_ns$graph != 0)
+network <- 1*(bootnet_thres$graph != 0)
+
+m2_bootnet_thres_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m2_bootnet_thres_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m2_bootnet_thres <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# GGM pruning
+m2_ggm_prune_s <- ggm(input_s) %>% runmodel %>% prune(alpha=0.05)
+m2_ggm_prune_ns <- ggm(input_ns) %>% runmodel %>% prune(alpha=0.05)
+m2_ggm_prune <- ggm(input) %>% runmodel %>% prune(alpha=0.05)
+
+# Lasso regulation
+lasso_reg_s <- estimateNetwork(input_s, 
+                               default = "EBICglasso", 
+                               corMethod= "spearman")
+lasso_reg_ns <- estimateNetwork(input_ns, 
+                                default = "EBICglasso", 
+                                corMethod= "spearman")
+lasso_reg <- estimateNetwork(input, 
+                             default = "EBICglasso", 
+                             corMethod= "spearman")
+
+network_s <- 1*(lasso_reg_s$graph != 0)
+network_ns <- 1*(lasso_reg_ns$graph != 0)
+network <- 1*(lasso_reg$graph != 0)
+
+m2_lasso_reg_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m2_lasso_reg_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m2_lasso_reg <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# ggmModSelect
+ggmmodselect_s <- estimateNetwork(input_s, 
+                                  default = "ggmModSelect", 
+                                  corMethod= "spearman")
+ggmmodselect_ns <- estimateNetwork(input_ns, 
+                                   default = "ggmModSelect", 
+                                   corMethod= "spearman")
+ggmmodselect <- estimateNetwork(input, 
+                                default = "ggmModSelect", 
+                                corMethod= "spearman")
+
+network_s <- 1*(ggmmodselect_s$graph != 0)
+network_ns <- 1*(ggmmodselect_ns$graph != 0)
+network <- 1*(ggmmodselect$graph != 0)
+
+m2_ggmmodselect_s <- psychonetrics::ggm(input_s, omega = network_s) %>% runmodel
+m2_ggmmodselect_ns <- psychonetrics::ggm(input_ns, omega = network_ns) %>% runmodel
+m2_ggmmodselect <- psychonetrics::ggm(input, omega = network) %>% runmodel
+
+# Stepup model search
+m2_stepup_s <- ggm(input_s) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+m2_stepup_ns <- ggm(input_ns) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+m2_stepup <- ggm(input) %>% runmodel %>% prune(adjust = "fdr", alpha = 0.01) %>% stepup(criterion="bic", alpha=0.05)
+
+# Compare all models
+compare(m2_bootnet_thres=m2_bootnet_thres, m2_ggm_prune=m2_ggm_prune, m2_lasso_reg = m2_lasso_reg, m2_ggmmodselect=m2_ggmmodselect,m2_stepup=m2_stepup)
+compare(m2_bootnet_thres_s=m2_bootnet_thres_s, m2_ggm_prune_s=m2_ggm_prune_s, m2_lasso_reg_s = m2_lasso_reg_s, m2_ggmmodselect_s=m2_ggmmodselect_s,m2_stepup_s=m2_stepup_s)
+compare(m2_bootnet_thres_ns=m2_bootnet_thres_ns, m2_ggm_prune_ns=m2_ggm_prune_ns, m2_lasso_reg_ns = m2_lasso_reg_ns, m2_ggmmodselect_ns=m2_ggmmodselect_ns,m2_stepup_ns=m2_stepup_ns)
+
+# Sacha Epskamp's approach
+f <- function(x){
+  library("psychonetrics")
+  library("dplyr")
+  
+  ggm(x) %>%
+    runmodel %>%
+    prune(adjust = "fdr", alpha = 0.01) %>%
+    stepup(criterion="bic", alpha=0.05) %>%
+    getmatrix("omega")
+}
+
+# Estimate the network using estimateNetwork:
+l = c("SP",
+      "Age",
+      "Edu",
+      "SC1",
+      "SC2",
+      "SC3",
+      "SC4",
+      "SC5",
+      "SC6",
+      "SC7",
+      "Nap")
+
+net_s2 <- estimateNetwork(input_s, fun = f, labels=l)
+net_ns2 <- estimateNetwork(input_ns, fun = f, labels=l)
+
+# Plot networks
+#' Creating hyperparameter *max_value*
+max_value <- max(
+  max(abs(net_s2$graph)), # from network 1
+  max(abs(net_ns2$graph)) # or from network 2?
+)
+
+#' Creating hyperparameter *net_layout*
+net_layout <- averageLayout(net_s2,
+                            net_ns2,
+                            layout = "spring",
+                            repulsion=0.998)
+
+# labels
+items <- c("Sleep paralysis frequency",
+           "5 tiers",
+           "6 tiers",
+           "Overall sleep quality",
+           "Speed falling asleep",
+           "Sleep duration",
+           "Sleep efficiency",
+           "Trouble failing asleep",
+           "Taking meds for sleep",
+           "Trouble w/ staying awake, or get things done",
+           "napping frequency and length")
+
+traits <- c("Target", rep("Demographics",2), rep("Sleep Quality Items",7), rep("Other Risk Factors",1))
+
+# plot results:
+plot(net_s2, 
+     layout = net_layout, #' *fixed layout*
+     maximum = max_value, #' *fixed edge width*
+     groups = traits,
+     label.cex = 1, # scalar on label size
+     label.color = 'black', # string on label colors
+     label.prop = 0.9, # proportion of the width of the node that the label scales
+     title = 'Student',
+     title.cex = 1.5,
+     # Edges (pp. 33-34)
+     negDashed = F, # should negative edges be dashed?
+     
+     # Legend (p. 35-36)
+     legend = F,
+     legend.cex = 0.5, # scalar of the legend
+     legend.mode = 'style2', # default is 'style1'
+     nodeNames = items, # names for each node to plot in legend
+     # Generical graphical arguments (p. 36)
+     font = 1)
+
+plot(net_ns2, 
+     layout = net_layout, #' *fixed layout*
+     maximum = max_value, #' *fixed edge width*
+     groups = traits,
+     label.cex = 1, # scalar on label size
+     label.color = 'black', # string on label colors
+     label.prop = 0.9, # proportion of the width of the node that the label scales
+     title = 'Non-student',
+     title.cex = 1.5,
+     # Edges (pp. 33-34)
+     negDashed = F, # should negative edges be dashed?
+     
+     # Legend (p. 35-36)
+     legend = F,
+     legend.cex = 0.5, # scalar of the legend
+     legend.mode = 'style2', # default is 'style1'
+     nodeNames = items, # names for each node to plot in legend
+     # Generical graphical arguments (p. 36)
+     font = 1)
