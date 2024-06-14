@@ -1,0 +1,107 @@
+# Bootstrapped CI (adjust nCores to computer cores):
+library("NetworkToolbox")
+
+# non-parametric bootstrap:
+boots1_s2 <- bootnet(net_s2, nCores = 2, nBoots = 100)
+boots1_ns2 <- bootnet(net_ns2, nCores = 2, nBoots = 100)
+
+# Plot CIs:
+plot(boots1_s2, split0 = TRUE, labels = TRUE, type = "difference", order = "sample", title = 'Student')
+plot(boots1_ns2, split0 = TRUE, labels = TRUE, type = "difference", order = "sample", title = 'Non-student')
+
+# Centrality (plot two samples in one chart)
+compareCentrality <- function(net1, net2,
+                              include = c("Strength",
+                                          "Closeness",
+                                          "Betweenness",
+                                          "ExpectedInfluence",
+                                          "all",
+                                          "All"),
+                              orderBy = c("Strength",
+                                          "Closeness",
+                                          "Betweenness",
+                                          "ExpectedInfluence"),
+                              decreasing = T,
+                              legendName = '',
+                              net1Name = 'Network 1',
+                              net2Name = 'Network 2'){
+  
+  library(ggplot2)
+  library(forcats)
+  
+  if(include == "All" | include == "all"){
+    include = c("Strength",
+                "Closeness",
+                "Betweenness",
+                "ExpectedInfluence")
+  }
+  
+  df <- centralityTable(net1, net2,labels=subset3) %>% filter(measure %in% include)
+  
+  df %>% 
+    mutate(graph = case_when(graph == 'graph 1' ~ net1Name,
+                             graph == 'graph 2' ~ net2Name),
+           graph = as.factor(graph),
+           node = as.factor(node)) %>% 
+    mutate(node = fct_reorder(node, value)) %>% 
+    ggplot(aes(x = node, y = value, group = graph)) +
+    geom_line(aes(linetype = graph), size = 0.5) +
+    labs(x = '', y = '') +
+    scale_linetype_discrete(name = legendName) +
+    coord_flip() +
+    facet_grid(~measure) +
+    theme_bw()
+}
+
+compareCentrality(net_s2, net_ns2,
+                  include = "all",
+                  legendName = "",
+                  orderBy = "ExpectedInfluence",
+                  #labels=subset2,
+                  net1Name = "Student",
+                  net2Name = "Non-student")
+
+# Case-drop bootstrap:
+boots2_s2 <- bootnet(net_s2, nCores = 2, , nBoots = 100, type = "case", statistics = c('strength','betweenness','closeness'))
+boots2_ns2 <- bootnet(net_ns2, nCores = 2, , nBoots = 100, type = "case", statistics = c('strength','betweenness','closeness'))
+
+# Centrality stability:
+plot(boots2_s2,statistics = c('strength','betweenness','closeness'))
+plot(boots2_ns2,statistics = c('strength','betweenness','closeness'))
+corStability(boots2_s2)
+corStability(boots2_ns2)
+
+# Network comparison
+set.seed(123) # random permutation seed
+nct_results2 <- NCT3(net_s2, net_ns2,it=500)
+nct_results2
+
+# Edge comparison
+nct_test_edges2 <- NCT3(net_s2, net_ns2, it = 100, test.edges = T)
+nct_test_edges2$einv.pvals %>% dplyr::filter(`p-value` <= 0.1)
+
+#age-edu
+cat(nct_test_edges2$nw1[2,3],nct_test_edges2$nw2[2,3])
+#age-sc1
+cat(nct_test_edges2$nw1[2,4],nct_test_edges2$nw2[2,4])
+#edu-sc4
+cat(nct_test_edges2$nw1[3,7],nct_test_edges2$nw2[3,7])
+#sc2-sc4
+cat(nct_test_edges2$nw1[5,7],nct_test_edges2$nw2[5,7])
+#sc3-sc4
+cat(nct_test_edges2$nw1[6,7],nct_test_edges2$nw2[6,7])
+#sc1-sc5
+cat(nct_test_edges2$nw1[4,8],nct_test_edges2$nw2[4,8])
+#sc2-sc5
+cat(nct_test_edges2$nw1[5,8],nct_test_edges2$nw2[5,8])
+#sp-sc6
+cat(nct_test_edges2$nw1[1,9],nct_test_edges2$nw2[1,9])
+#edu-sc7
+cat(nct_test_edges2$nw1[3,10],nct_test_edges2$nw2[3,10])
+#sc1-sc7
+cat(nct_test_edges2$nw1[4,10],nct_test_edges2$nw2[4,10])
+#age-nap
+cat(nct_test_edges2$nw1[2,11],nct_test_edges2$nw2[2,11])
+#sc7-nap
+cat(nct_test_edges2$nw1[10,11],nct_test_edges2$nw2[10,11])
+
