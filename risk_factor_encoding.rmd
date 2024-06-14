@@ -1,0 +1,112 @@
+# show risk factor columns
+col <- c("alc_use_coded", "alc_per_week", "alc_at_once", "alc_nights_per_week",
+        "caffetine_use_coded", "caffetine_per_week", "caffetine_per_day",
+        "nicotine_use_coded", "nicotine_per_week", "nicotine_per_day",
+        "family_members_coded", "family_number_coded",
+        "napping_coded", "napping_length_coded"
+        )
+fac <- df[,col]
+
+# Data cleaning - some responses misunderstood the questions
+df <- df %>%
+mutate(alc_nights_per_week_adj = ifelse(alc_nights_per_week > 7, 7,alc_nights_per_week)) %>%
+mutate(nicotine_per_week_adj = ifelse(nicotine_per_week > 7, 7,nicotine_per_week)) 
+
+# Scale risk factors between 0 and 1
+# alcohol
+df <- df %>% 
+  mutate(alc_per_week_scaled = predict(preProcess(as.data.frame(alc_per_week), method=c("range")), as.data.frame(alc_per_week))) 
+df <- df %>% 
+  mutate(alc_at_once_scaled = predict(preProcess(as.data.frame(alc_at_once), method=c("range")), as.data.frame(alc_at_once))) 
+df <- df %>% 
+  mutate(alc_nights_per_week_scaled = predict(preProcess(as.data.frame(alc_nights_per_week_adj), method=c("range")), as.data.frame(alc_nights_per_week_adj))) 
+# caffeine
+df <- df %>% 
+  mutate(caffetine_per_week_scaled = predict(preProcess(as.data.frame(caffetine_per_week), method=c("range")), as.data.frame(caffetine_per_week))) 
+df <- df %>% 
+  mutate(caffetine_per_day_scaled = predict(preProcess(as.data.frame(caffetine_per_day), method=c("range")), as.data.frame(caffetine_per_day))) 
+# nicotine
+df <- df %>% 
+  mutate(nicotine_per_week_scaled = predict(preProcess(as.data.frame(nicotine_per_week_adj), method=c("range")), as.data.frame(nicotine_per_week_adj))) 
+df <- df %>% 
+  mutate(nicotine_per_day_scaled = predict(preProcess(as.data.frame(nicotine_per_day), method=c("range")), as.data.frame(nicotine_per_day))) 
+# family
+df <- df %>% 
+  mutate(family_number_coded_scaled = predict(preProcess(as.data.frame(family_number_coded), method=c("range")), as.data.frame(family_number_coded))) 
+# napping
+df <- df %>% 
+  mutate(napping_coded_scaled = predict(preProcess(as.data.frame(napping_coded), method=c("range")), as.data.frame(napping_coded))) 
+df <- df %>% 
+  mutate(napping_length_coded_scaled = predict(preProcess(as.data.frame(napping_length_coded), method=c("range")), as.data.frame(napping_length_coded))) 
+
+# Compute risk factor scores [0,1]
+# Alcohol Factor 
+df$alc_factor_mean <- rowMeans(df[,c("alc_per_week_scaled", "alc_at_once_scaled", "alc_nights_per_week_scaled")], na.rm = TRUE)
+# Caffeine Factor
+df$caffetine_factor_mean <- rowMeans(df[,c("caffetine_per_week_scaled", "caffetine_per_day_scaled")], na.rm = TRUE)
+# Nicotine Factor
+df$nicotine_factor_mean <- rowMeans(df[,c("nicotine_per_week_scaled", "nicotine_per_day_scaled")], na.rm = TRUE)
+# Family Factor
+df$family_factor_mean <- rowMeans(df[,c("family_number_coded_scaled")], na.rm = TRUE)
+# Napping Factor
+df$napping_factor_mean <- rowMeans(df[,c("napping_coded_scaled", "napping_length_coded_scaled")], na.rm = TRUE)
+
+# Histogram to visualize normality
+ggplot(df, aes(x = napping_factor_mean)) +
+  geom_histogram(aes(color = as.factor(student_coded), fill = as.factor(student_coded)), 
+                 position = "identity", alpha = 0.4) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800")) +
+  facet_wrap(~as.factor(student_coded))
+
+# Histogram
+ggplot(df, aes(x = SC6)) +
+  geom_histogram(aes(color = as.factor(student_coded), fill = as.factor(student_coded)), 
+                 position = "identity", alpha = 0.4) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800")) +
+  facet_wrap(~as.factor(student_coded))
+
+# Split sample into student vs. non-student
+df_s <- df[df$student_coded ==1, ]
+df_ns <- df[df$student_coded ==0, ]
+
+# Test normality
+#install.packages("Rfast")
+library("Rfast")
+# Student Sample
+describe(df_s[,"sp_freq_coded"])
+colskewness(as.matrix(df_s[,"sp_freq_coded"]))
+colkurtosis(as.matrix(df_s[,"sp_freq_coded"]))
+
+factor_cols = c("alc_factor_mean","caffetine_factor_mean","nicotine_factor_mean","family_factor_mean","napping_factor_mean")
+describe(df_s[,factor_cols])
+colskewness(as.matrix(df_s[,factor_cols]))
+colkurtosis(as.matrix(df_s[,factor_cols]))
+
+demo_cols = c("age_coded","education_coded","is_female")
+describe(df_s[,demo_cols])
+colskewness(as.matrix(df_s[,demo_cols]))
+colkurtosis(as.matrix(df_s[,demo_cols]))
+
+SC_cols = c("SC1","SC2","SC3","SC4","SC5","SC6","SC7")
+describe(df_s[,SC_cols])
+colskewness(as.matrix(df_s[,SC_cols]))
+colkurtosis(as.matrix(df_s[,SC_cols]))
+
+# Non-Student Sample
+describe(df_ns[,"sp_freq_coded"])
+colskewness(as.matrix(df_ns[,"sp_freq_coded"]))
+colkurtosis(as.matrix(df_ns[,"sp_freq_coded"]))
+
+factor_cols = c("alc_factor_mean","caffetine_factor_mean","nicotine_factor_mean","family_factor_mean","napping_factor_mean")
+colskewness(as.matrix(df_ns[,factor_cols]))
+colkurtosis(as.matrix(df_ns[,factor_cols]))
+
+demo_cols = c("age_coded","education_coded","is_female")
+colskewness(as.matrix(df_ns[,demo_cols]))
+colkurtosis(as.matrix(df_ns[,demo_cols]))
+
+SC_cols = c("SC1","SC2","SC3","SC4","SC5","SC6","SC7")
+colskewness(as.matrix(df_ns[,SC_cols]))
+colkurtosis(as.matrix(df_ns[,SC_cols]))
