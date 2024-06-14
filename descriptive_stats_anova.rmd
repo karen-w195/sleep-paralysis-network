@@ -1,0 +1,131 @@
+# Split sample into student vs. non-student
+df_s <- df[df$student_coded ==1, ]
+df_ns <- df[df$student_coded ==0, ]
+
+# Descriptive Stats
+cols_sq = c("PSQI",
+            "SC1",       
+            "SC2",      
+            "SC3",       
+            "SC4",
+            "SC5",      
+            "SC6",       
+            "SC7")
+# convert ordinal value to character
+df[,"sp_freq_var"] = as.character(df[,"sp_freq_coded"])
+df[,"age_var"] = as.character(df[,"age_coded"])
+df[,"education_var"] = as.character(df[,"education_coded"])
+df[,"napping_var"] = as.character(df[,"napping_coded"])
+df[,"napping_length_var"] = as.character(df[,"napping_length_coded"])
+
+# create dummy variables
+col_dummy = c("student_coded",
+              "sp_freq_var",
+              "age_var",
+              "education_var",
+              "napping_var",
+              "napping_length_var")
+
+install.packages("fastDummies")
+library("fastDummies")
+dummy <- fastDummies::dummy_cols(df[,col_dummy])
+names(dummy)
+
+# Mean and STD
+df   %>% 
+  group_by(student_coded)  %>% 
+  dplyr::summarize(across(cols_sq,mean,na.rm=TRUE)) %>%
+  t() %>% 
+  as.data.frame()
+
+remove = c("student_coded","sp_freq_var","age_var","education_var","napping_var","napping_length_var")
+col_dummy_expand = names(dummy)[! names(dummy) %in% remove]
+
+dummy   %>% 
+  group_by(student_coded)  %>% 
+  dplyr::summarize(across(col_dummy_expand,mean,na.rm=TRUE)) %>%
+  t() %>% 
+  as.data.frame()
+
+# ANOVA
+mod <- aov(PSQI~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC1~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC2~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC3~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC4~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC5~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC6~as.factor(student_coded),df)
+summary(mod)
+mod <- aov(SC7~as.factor(student_coded),df)
+summary(mod)
+
+mod <- aov(sp_freq_var_0~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_1~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_2~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_3~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_4~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_5~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_6~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(sp_freq_var_7~as.factor(student_coded),dummy)
+summary(mod)
+
+mod <- aov(age_var_0~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(age_var_1~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(age_var_2~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(age_var_3~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(age_var_4~as.factor(student_coded),dummy)
+summary(mod)
+
+mod <- aov(education_var_0~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(education_var_1~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(education_var_2~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(education_var_3~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(education_var_4~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(education_var_5~as.factor(student_coded),dummy)
+summary(mod)
+
+mod <- aov(napping_var_0~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_var_1~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_var_2~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_var_3~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_var_4~as.factor(student_coded),dummy)
+summary(mod)
+
+mod <- aov(napping_length_var_0~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_length_var_1~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_length_var_2~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_length_var_3~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_length_var_4~as.factor(student_coded),dummy)
+summary(mod)
+mod <- aov(napping_length_var_5~as.factor(student_coded),dummy)
+summary(mod)
